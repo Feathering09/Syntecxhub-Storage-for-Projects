@@ -1,7 +1,15 @@
 import random
-While True:
-mode=input("Please enter your choice of mode :")
-if mode 
+while True:
+   mode=input("Please enter your choice of mode :").lower
+   if mode != "easy" or "hard or "extreme":
+       #INVALID
+        print("INVALID. Enter again.")         continue
+   if mode =="easy" or "hard" or "extreme":
+    #VALID
+    print("VALID choice. Proceeding..")
+    print("----------------")
+    break
+if mode=="easy":
 num=random.randint(1,100) #the range is in the brackets.(lowest,highest)
 turns =0
 print("Number randomly selected (between 1-100), good luck guessing it! ")
