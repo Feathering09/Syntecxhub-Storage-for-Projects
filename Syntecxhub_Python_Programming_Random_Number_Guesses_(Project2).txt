@@ -1,23 +1,44 @@
 import random
-while True:
-   mode=input("Please enter your choice of mode :").lower
-   if mode != "easy" or "hard or "extreme":
-       #INVALID
-        print("INVALID. Enter again.")         continue
-   if mode =="easy" or "hard" or "extreme":
-    #VALID
-    print("VALID choice. Proceeding..")
-    print("----------------")
-    break
-if mode=="easy":
-num=random.randint(1,100) #the range is in the brackets.(lowest,highest)
-turns =0
-print("Number randomly selected (between 1-100), good luck guessing it! ")
-while True:
-    guess=int(input("Enter your guess :"))
-    if (guess=num):
-        print("Guessed right, congrats! :)")
-        choice=input("Do you wish to carry on? (Y/N): ").lower
+
+'''difficulty = input("Would you like it Easy, Medium or Difficult? :")
+if difficulty[0].upper() == "E":
+    n = random.randint(1, 10)
+elif difficulty[0].upper() == "M":
+    n = random.randint(1, 50)
+elif difficulty[0].upper() == "D":
+    n = random.randint(1, 99)
+else:
+    raise Exception("You didn't type a difficulty.")'''
+'''difficulty_ranges = {
+    "easy": (1, 10),
+    "medium": (1, 50),
+    "difficult": (1, 99)
+}'''
+difficulty = input("Choose difficulty (Easy, Medium, Difficult): ").strip().lower()
+
+difficulty_settings = {
+    "easy": {"range": (1, 10), "turns": 15},
+    "medium": {"range": (1, 50), "turns": 10},
+    "difficult": {"range": (1, 99), "turns": 5}
+}
+
+if difficulty not in difficulty_settings:
+    raise Exception("Invalid difficulty level.")
+num = random.randint(low, high)
+# Access the values
+low, high = difficulty_settings[difficulty]["range"]
+max_turns = difficulty_settings[difficulty]["turns"]
+#difficulty_levels = ["Easy", medium, deificult"]
+ #the range is in the brackets.(lowest,highest)
+
+
+
+        turns=0
+        guess=int(input("Enter your guess :"))
+        if (guess==num):
+            print("Guessed right, congrats! :)")
+            turns=1
+        choice=input("Do you wish to carry on? (Y/N): ").lower().strip()
         if choice == "yes" or "y" or "yeah" or "sure":
             continue
         if choice =="n" or "no" or "nah":
@@ -29,4 +50,3 @@ while True:
         print("guess lower")
         turns=turns+1
     print("You guessed the number ",num,"after ",turns, " turns")
-    
