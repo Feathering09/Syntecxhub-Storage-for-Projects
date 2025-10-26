@@ -1,52 +1,44 @@
 import random
 
-'''difficulty = input("Would you like it Easy, Medium or Difficult? :")
-if difficulty[0].upper() == "E":
-    n = random.randint(1, 10)
-elif difficulty[0].upper() == "M":
-    n = random.randint(1, 50)
-elif difficulty[0].upper() == "D":
-    n = random.randint(1, 99)
-else:
-    raise Exception("You didn't type a difficulty.")'''
-'''difficulty_ranges = {
-    "easy": (1, 10),
-    "medium": (1, 50),
-    "difficult": (1, 99)
-}'''
-difficulty = input("Choose difficulty (Easy, Medium, Difficult): ").strip().lower()
+difficulty_choice = input("Choose difficulty (Easy, Medium, Difficult): ").strip().lower()
 
+# Difficulty settings with range and turn limits
 difficulty_settings = {
     "easy": {"range": (1, 10), "turns": 15},
     "medium": {"range": (1, 50), "turns": 10},
-    "difficult": {"range": (1, 99), "turns": 5}
-}
+    "difficult": {"range": (1, 99), "turns": 5}  
+} #VALID
 
-if difficulty not in difficulty_settings:
+#INVALID
+if difficulty_choice not in difficulty_settings:
     raise Exception("Invalid difficulty level.")
-num = random.randint(low, high)
-# Access the values
-low, high = difficulty_settings[difficulty]["range"]
-max_turns = difficulty_settings[difficulty]["turns"]
-#difficulty_levels = ["Easy", medium, deificult"]
- #the range is in the brackets.(lowest,highest)
 
+range_low, range_high = difficulty_settings[difficulty_choice]["range"]
+max_turns = difficulty_settings[difficulty_choice]["turns"]
+target_number = random.randint(range_low, range_high)
 
+#haha GAMES STARTEDDD
+print(f"Number randomly selected (between {range_low}-{range_high}), good luck guessing it!")
 
-        turns=0
-        guess=int(input("Enter your guess :"))
-        if (guess==num):
-            print("Guessed right, congrats! :)")
-            turns=1
-        choice=input("Do you wish to carry on? (Y/N): ").lower().strip()
-        if choice == "yes" or "y" or "yeah" or "sure":
-            continue
-        if choice =="n" or "no" or "nah":
-            break
-    if (guess<num):
+turns = 0
+while True:
+    guess = int(input("Enter your guess: "))
+    if guess == target_number:
+        print("Guessed right, congrats! :)")
+        turns = 1
+        break
+
+    choice = input("Do you wish to carry on? (Y/N): ").strip().lower()
+    if choice in ["yes", "y", "yeah", "sure"]:
+        pass
+    elif choice in ["n", "no", "nah"]:
+        break
+
+    if guess < target_number:
         print("Guess higher")
-        turns=turns+1
-    if(guess>num):
-        print("guess lower")
-        turns=turns+1
-    print("You guessed the number ",num,"after ",turns, " turns")
+        turns += 1
+    elif guess > target_number:
+        print("Guess lower")
+        turns += 1
+
+print("You guessed the number", target_number, "after", turns, "turns")
