@@ -1,0 +1,124 @@
+import datetime
+'''file=open('Syntecxhub_Python_Programming_To-Do-List-Task_Manager.txt', 'r')
+content=file.read()
+print(content)'''
+
+tasks=[]
+def add_task():
+    task = input("Enter a new task: ")
+    try:
+        day = int(input("Enter the due day: "))
+        month = int(input("Enter the due month: "))
+        year = int(input("Enter the due year: "))
+        due_date = datetime.date(year, month, day)
+        tasks.append({'description': task, 'due_date': due_date})
+        print("Task added successfully!")
+    except ValueError:
+        print("Invalid date. Task not added.")
+
+
+'''day=int(input("Enter the day :"))
+month=int(input("enter the month :"))
+year=int(input("enter the year :"))
+date=[day,month,year]
+print(date)
+'''
+
+
+def view_tasks():
+    if not tasks:
+        print("No tasks.")
+    else:
+        print("List of tasks:")
+        for i, task in enumerate(tasks):
+            print(f"{i+1}. {task['description']} (Due: {task['due_date'].strftime('%d-%m-%Y')})")
+
+            #enumerate-works on lists/tuples, and lists the index order of the list's items, (EG: [1,cat, 2, dog]). IT INDEXES THE ITEMS 
+            
+        #views the list of tasks
+
+def delete_task():
+    if not tasks:
+        print("No tasks to delete.")
+        return
+
+    view_tasks()
+    choice = int(input("Enter the task number to modify: "))
+    if 0 < choice <= len(tasks):
+        print("1. Delete entire task")
+        print("2. Delete only the due date")
+        sub_choice = int(input("Choose an option: "))
+        if sub_choice == 1:
+            del tasks[choice - 1]
+            print("Task deleted successfully.")
+        elif sub_choice == 2:
+            tasks[choice - 1]['due_date'] = None
+            print("Due date removed.")
+        else:
+            print("Invalid option.")
+    else:
+        print("Invalid task number.")
+       #deletes a task
+
+
+def edit_task():
+    if not tasks:
+        print("No tasks to edit.")
+        return
+
+    view_tasks()
+    choice = int(input("Enter the task number to edit: "))
+    if 0 < choice <= len(tasks):
+        print("1. Edit task description")
+        print("2. Edit due date")
+        sub_choice = int(input("Choose an option: "))
+        if sub_choice == 1:
+            new_desc = input("Enter new task description: ")
+            tasks[choice - 1]['description'] = new_desc
+            print("Task updated.")
+        elif sub_choice == 2:
+            try:
+                day = int(input("Enter new due day: "))
+                month = int(input("Enter new due month: "))
+                year = int(input("Enter new due year: "))
+                tasks[choice - 1]['due_date'] = datetime.date(year, month, day)
+                print("Due date updated.")
+            except ValueError:
+                print("Invalid date.")
+        else:
+            print("Invalid option.")
+    else:
+        print("Invalid task number.")
+
+
+def main():
+    #runs the command-line too list application
+    while True:
+        print("\n==== To-Do-List Application =====")
+        print("1. Add task")
+        print("2. View task")
+        print("3. Delete task")
+        print("4. Edit task")
+        print("5. Quit")
+
+        choice=int(input("Enter your choice :"))
+        if choice==1:
+            add_task()
+        elif choice==2:
+            view_tasks()
+        elif choice==3:
+            delete_task()
+        elif choice == 4:
+            edit_task()
+        elif choice == 5:
+            print("Thank you for using the To-Do-List Application! :)")
+            break
+
+        else:
+            print("Invalid Choice, Please try again.")
+
+if __name__=='__main__':
+    main()
+
+
+#file.close()
