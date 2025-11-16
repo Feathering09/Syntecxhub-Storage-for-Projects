@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""
+CSV -> cleaned Excel (.xlsx) converter with simple preprocessing.
+
+Features:
+- Read CSV files via pandas
+- Clean/normalize data (missing values, date parsing, column renames)
+- Export to .xlsx (openpyxl engine)
+- CLI flags (input file, output path, date columns, rename mapping, missing handling)
+- Simple logging and error messages
+
+Useful for data prep and reporting automation.
+"""
+
+import argparse
+import json
+import logging
+import sys
+from pathlib import Path
+from typing import List, Dict, Optional
+
+import pandas as pd
+
+
+def setup_logging(verbose: bool = False) -> None:
+    level = logging.DEBUG if verbose else logging.INFO
+    logging.basicConfig(
+        level=level,
+        format="%(asctime)s %(levelname)s: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
+
+
+def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Read a CSV, clean/normalize, and export to .xlsx using pandas/openpyxl."
+    )
+    parser.add_argument(
+        "-i", "--input", required=True, help="Path to input CSV file."
+    )
+    parser.add_argument(
+        "-o", "--output", required=True, help="Path to output .xlsx file."
+    )
+    parser.add_argument(
+        "--sheet-name",
+        default="Sheet1",
+        help="Excel sheet name (default: Sheet1)."
+    )
+    parser.add_argument(
+        "--date-cols",
+        nargs="*",
+        default=[],
+        help="Column names to parse as dates."
+    )
+    parser.add_argument(
+        "--rename",
+        type=str,
+        default="",
+        help="JSON mapping for column renames (e.g., '{\"old\":\"new\"}')."
+    )
+    parser.add_argument(
+        "--missing-strategy",
+        choices=["drop-rows", "fill-zeros", "fill-empty", "none"],
+        default="none",
+        help="How to handle missing values. 'drop-rows' drops rows with any NA; "
+             "'fill-zeros' fills numeric NAs with 0 and others with empty string; "
+             "'fill-empty' fills all NAs with empty string; 'none' makes no changes."
+    )
+    parser.add_argument(
+        "--index",
+        action="store_true",
+        help="Include DataFrame index in the Excel output."
+    )
+    parser.add_argument(
+        "--encoding",
+        default="utf-8",
+        help="CSV file encoding (default: utf-8)."
+    )
+    parser.add_argument(
+        "--sep",
+        default=",",
+        help="CSV separator (default: ',')."
+    )
+    parser.add_argument(
+        "--na-values",
+        nargs="*",
+        default=None,
+        help="Additional strings to recognize as NA (e.g., 'NA', 'null', '-')."
+    )
+    parser.add_argument(
+        "--infer-dtypes",
+        action="store_true",
+        help="Attempt to infer better dtypes after cleaning."
+    )
+    parser.add_argument(
+        "--limit-rows",
+        type=int,
+        default=None,
+        help="Optional limit on number of rows to read (sampling/debug)."
+    )
+    return parser.parse_args(argv)
+
+
+def load_csv(path: Path, encoding: str, sep: str, na_values: Optional[List[str]], limit_rows: Optional[int]) -> pd.DataFrame:
+    try:
+        df = pd.read_csv(
+            path,
+            encoding=encoding,
+            sep=sep,
+            na_values=na_values,
+            nrows=limit_rows
+        )
+        logging.info(f"Loaded CSV: {path} ({len(df)} rows, {len(df.columns)} columns)")
+        return df
+    except FileNotFoundError:
+        logging.error(f"Input file not found: {path}")
+        sys.exit(1)
+    except pd.errors.EmptyDataError:
+        logging.error(f"Input CSV is empty: {path}")
+        sys.exit(1)
+    except pd.errors.ParserError as e:
+        logging.error(f"Failed to parse CSV: {path} -> {e}")
+        sys.exit(1)
+    except UnicodeDecodeError as e:
+        logging.error(f"Encoding error reading CSV ({encoding}): {path} -> {e}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Unexpected error loading CSV: {e}")
+        sys.exit(1)
+
+
+def parse_dates(df: pd.DataFrame, date_cols: List[str]) -> pd.DataFrame:
+    if not date_cols:
+        return df
+    for col in date_cols:
+        if col not in df.columns:
+            logging.warning(f"Date column not found: {col}")
+            continue
+        df[col] = pd.to_datetime(df[col], errors="coerce", infer_datetime_format=True, utc=False)
+        coerced = df[col].isna().sum()
+        if coerced:
+            logging.info(f"Parsed date column '{col}' with {coerced} non-parsable values coerced to NaT")
+    return df
+
+
+def rename_columns(df: pd.DataFrame, rename_json: str) -> pd.DataFrame:
+    if not rename_json:
+        return df
+    try:
+        mapping: Dict[str, str] = json.loads(rename_json)
+        missing = [k for k in mapping.keys() if k not in df.columns]
+        if missing:
+            logging.warning(f"Columns to rename not found: {missing}")
+        df = df.rename(columns=mapping)
+        logging.info(f"Renamed columns: {mapping}")
+        return df
+    except json.JSONDecodeError as e:
+        logging.error(f"Invalid JSON for --rename: {e}")
+        sys.exit(1)
+
+
+def handle_missing(df: pd.DataFrame, strategy: str) -> pd.DataFrame:
+    if strategy == "none":
+        return df
+    if strategy == "drop-rows":
+        before = len(df)
+        df = df.dropna(how="any")
+        logging.info(f"Dropped rows with any NA: {before} -> {len(df)}")
+        return df
+    if strategy == "fill-empty":
+        df = df.fillna("")
+        logging.info("Filled all missing values with empty strings")
+        return df
+    if strategy == "fill-zeros":
+        # Numeric columns -> 0, non-numeric -> ""
+        num_cols = df.select_dtypes(include=["number"]).columns
+        non_num_cols = df.columns.difference(num_cols)
+        df[num_cols] = df[num_cols].fillna(0)
+        df[non_num_cols] = df[non_num_cols].fillna("")
+        logging.info("Filled numeric NAs with 0 and non-numeric NAs with empty strings")
+        return df
+    logging.warning(f"Unknown missing strategy '{strategy}', no changes applied")
+    return df
+
+
+def infer_better_dtypes(df: pd.DataFrame) -> pd.DataFrame:
+    # Try to convert object columns to numeric where possible
+    obj_cols = df.select_dtypes(include=["object"]).columns
+    for col in obj_cols:
+        # Try numeric
+        converted = pd.to_numeric(df[col], errors="ignore")
+        if converted.dtypes != df[col].dtypes:
+            df[col] = converted
+            continue
+        # Try datetime
+        dt = pd.to_datetime(df[col], errors="ignore", infer_datetime_format=True)
+        if dt.dtypes != df[col].dtypes:
+            df[col] = dt
+    logging.info("Attempted dtype inference on object columns")
+    return df
+
+
+def export_excel(df: pd.DataFrame, output_path: Path, sheet_name: str, include_index: bool) -> None:
+    try:
+        # Ensure parent directory exists
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        with pd.ExcelWriter(output_path, engine="openpyxl") as writer:
+            df.to_excel(writer, index=include_index, sheet_name=sheet_name)
+        logging.info(f"Exported cleaned data to: {output_path}")
+    except PermissionError:
+        logging.error(f"Permission denied writing: {output_path}")
+        sys.exit(1)
+    except Exception as e:
+        logging.error(f"Failed to export Excel: {e}")
+        sys.exit(1)
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    args = parse_args(argv)
+    setup_logging(verbose=True)
+
+    input_path = Path(args.input)
+    output_path = Path(args.output)
+
+    logging.debug(f"Args: {args}")
+
+    df = load_csv(
+        input_path,
+        encoding=args.encoding,
+        sep=args.sep,
+        na_values=args.na_values,
+        limit_rows=args.limit_rows,
+    )
+
+    df = parse_dates(df, args.date_cols)
+    df = rename_columns(df, args.rename)
+    df = handle_missing(df, args.missing_strategy)
+    if args.infer_dtypes:
+        df = infer_better_dtypes(df)
+
+    export_excel(df, output_path, sheet_name=args.sheet_name, include_index=args.index)
+
+
+if __name__ == "__main__":
+    main()
